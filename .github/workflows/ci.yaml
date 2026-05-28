@@ -61,15 +61,17 @@ jobs:
             - name: Install dependencies
               if: steps.cache-node-modules.outputs.cache-hit != 'true'
               run: npm ci
-
+              
             - name: Skip install (cache hit)
               if: steps.cache-node-modules.outputs.cache-hit == 'true'
               run: echo "Cache hit - skipping npm install"
-
+              
             - name: Run tests
               id: vitest
               run: npm test
-
+              
+            - name: List uploaded artifacts (for debugging)
+              run: ls -la ${{ github.workspace }}
             - name: Force fail (demo failure() + report job)
               if: ${{ inputs.force_fail }}
               run: |
@@ -83,5 +85,3 @@ jobs:
                 name: test-results
                 path: ${{ github.workspace }}/test/tests.json
                 if-nofiles-found: warn
-            - name: List uploaded artifacts (for debugging)
-              run: ls -la ${{ github.workspace }}
