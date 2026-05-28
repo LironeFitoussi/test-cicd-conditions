@@ -1,87 +1,100 @@
 name: CI - Flow Control Demo
 
-on: 
-    # push:
-    pull_request:
-    workflow_dispatch:
-        inputs:
-            force_fail:
-                description: 'Force the test job to fail (demo failure() + report job)'
-                type: boolean
-                default: false
-env: 
-    NODE_VERSION: "20"
+on:
+  # push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      force_fail:
+        description: 'Force the test job to fail (demo failure() + report job)'
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: "20"
+
 jobs:
-    lint:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v6
-            - name: Set up Node.js
-              uses: actions/setup-node@v6
-              with:
-                node-version: ${{ env.NODE_VERSION }}
-            
-            
-            - name: Restore node_modules cache
-              id: cache-node-modules
-              uses: actions/cache@v5
-              with:
-                path: node_modules
-                key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
-            
-            
-            - name: Install dependencies
-              if: steps.cache-node-modules.outputs.cache-hit != 'true'
-              run: npm ci
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
 
-            - name: Skip install (cache hit)
-              if: steps.cache-node-modules.outputs.cache-hit == 'true'
-              run: echo "Cache hit - skipping npm install"
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
-            - name: Run ESLint
-              run: npm run lint
-    test:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v6
-            - name: Set up Node.js
-              uses: actions/setup-node@v6
-              with:
-                node-version: ${{ env.NODE_VERSION }}
-            
-            
-            - name: Restore node_modules cache
-              id: cache-node-modules
-              uses: actions/cache@v5
-              with:
-                path: node_modules
-                key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
-            
-            
-            - name: Install dependencies
-              if: steps.cache-node-modules.outputs.cache-hit != 'true'
-              run: npm ci
-              
-            - name: Skip install (cache hit)
-              if: steps.cache-node-modules.outputs.cache-hit == 'true'
-              run: echo "Cache hit - skipping npm install"
-              
-            - name: Run tests
-              id: vitest
-              run: npm test
-              
-            - name: List uploaded artifacts (for debugging)
-              run: ls -la ${{ github.workspace }}
-            - name: Force fail (demo failure() + report job)
-              if: ${{ inputs.force_fail }}
-              run: |
-                echo "Forcing test failure for demo purposes"
-                exit 1
-            
-            - name: Upload test results
-              if: failure() # Only upload if the test step failed
-              uses: actions/upload-artifact@v7
-              with:
-                name: test-results
-                path: ${{ github.workspace }}/test/test.json
-                if-no-files-found: warn
+      - name: Restore node_modules cache
+        id: cache-node-modules
+        uses: actions/cache@v5
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Skip install (cache hit)
+        if: steps.cache-node-modules.outputs.cache-hit == 'true'
+        run: echo "Cache hit - skipping npm install"
+
+      - name: Run ESLint
+        run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules cache
+        id: cache-node-modules
+        uses: actions/cache@v5
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Skip install (cache hit)
+        if: steps.cache-node-modules.outputs.cache-hit == 'true'
+        run: echo "Cache hit - skipping npm install"
+
+      - name: Run tests
+        id: vitest
+        run: npm test
+
+      - name: Force fail (demo failure() + report job)
+        if: ${{ inputs.force_fail }}
+        run: |
+          echo "Forcing test failure for demo purposes"
+          exit 1
+
+      - name: Upload test results
+        if: failure() # Only upload if the test step failed
+        uses: actions/upload-artifact@v7
+        with:
+            name: test-results
+            path: test/test.json
+            if-no-files-found: warn
+
+      - name: Run a flaky check
+        id: flaky_check
+        continue-on-error: true
+        run: |
+            echo "Running a flaky check that may fail"
+            exit 1 # Simulate failure, but we will ignore it
+    
+      - name: Show Outcome vs conclusion
+        run: |
+            echo "Outcome of the flaky check: ${{ steps.flaky_check.outcome }}"
+            echo "Conclusion of the flaky check: ${{ steps.flaky_check.conclusion }}"
+            echo "vitest step outcome: ${{ steps.vitest.outcome }}"
+            echo "vitest step conclusion: ${{ steps.vitest.conclusion }}"
