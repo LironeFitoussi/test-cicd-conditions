@@ -40,3 +40,47 @@ jobs:
 
             - name: Run ESLint
               run: npm run lint
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - name: Set up Node.js
+              uses: actions/setup-node@v6
+              with:
+                node-version: ${{ env.NODE_VERSION }}
+            
+            
+            - name: Restore node_modules cache
+              id: cache-node-modules
+              uses: actions/cache@v5
+              with:
+                path: node_modules
+                key: ${{ runner.os }}-node-${{ env.NODE_VERSION }}-${{ hashFiles('**/package-lock.json') }}
+            
+            
+            - name: Install dependencies
+              if: steps.cache-node-modules.outputs.cache-hit != 'true'
+              run: npm ci
+
+            - name: Skip install (cache hit)
+              if: steps.cache-node-modules.outputs.cache-hit == 'true'
+              run: echo "Cache hit - skipping npm install"
+
+            - name: Run tests
+              id: vitest
+              run: npm test
+
+            - name: Force fail (demo failure() + report job)
+              if: ${{ inputs.force_fail }}
+              run: |
+                echo "Forcing test failure for demo purposes"
+                exit 1
+            
+            - name: Upload test results
+              if: failure() && steps.vitest.outcome == 'failure'
+              uses: actions/upload-artifact@v7
+              with:
+                name: test-results
+                path: test/tests.json
+                if-nofiles-found: warn
+                
